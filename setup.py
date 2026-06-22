@@ -25,7 +25,7 @@ setup(
     url="",
     author="Kevin Bernardo",
     author_email="",
-    license="SRK/LAME copyright",
+    license="MIT",
     classifiers=[
         "Intended Audience :: Developers",
         "Programming Language :: Python",

@@ -17,7 +17,7 @@ All indicators are computed through post-processing of finite element results (e
 All indicators share the same spatial framework:
 
 \[
-I = \int_A f(\mathbf{x}) \, dA
+I = \dfrac{1}{A} \int_A f(\mathbf{x}) \, dA
 \]
 
 where:
@@ -33,13 +33,13 @@ Each stress point contributes proportionally to its associated Voronoi cell area
 ## 1. $\mathbf{r_u}$ Indicator
 
 \[
-I_{WT} = \int_A \frac{\Delta p}{\sigma} \, dA
+r_u = \dfrac{1}{A} \int_A \frac{\Delta p'}{\sigma'} \, dA
 \]
 
 where:
 
-- \(\Delta p = p_{\text{active}} - p_{\text{reference}}\)
-- \(\sigma\): selected stress field (e.g. SigyyE, MeanEffStress)
+- \(\Delta p' = p'_{\text{active,current phase}} - p'_{\text{active, reference phase}}\)
+- \(\sigma\): selected stress field (e.g. $\sigma'_v$ or $p'$ (SigyyE or MeanEffStress))
 
 ### Interpretation
 
@@ -53,8 +53,8 @@ Measures spatially accumulated pore pressure changes normalized by stress state,
 
 Partitions the domain based on pore pressure sign:
 
-- Suction (negative pressure): \(p_{\text{active}} < 0\)
-- Non-suction (positive or zero pressure): \(p_{\text{active}} \ge 0\)
+- Suction (negative pressure): \(p'_{\text{active}} < 0\)
+- Non-suction (positive or zero pressure): \(p'_{\text{active}} \ge 0\)
 
 ### Outputs
 
@@ -73,8 +73,8 @@ Quantifies the spatial extent of matric suction conditions, relevant for partial
 
 Classifies the domain based on full saturation condition:
 
-- Fully saturated: \(p_{\text{active}} \le 0\) (100% saturation assumption)
-- Not fully saturated: \(p_{\text{active}} > 0\)
+- Fully saturated: \(p'_{\text{active}} \le 0\) (100% saturation assumption)
+- Not fully saturated: \(p'_{\text{active}} > 0\)
 
 ### Outputs
 
@@ -90,12 +90,12 @@ Provides a geometric measure of saturation extent within the domain, useful for 
 ## 4. Hydraulic Energy Indicator
 
 \[
-E_h = - \frac{\int_A p_{\text{active}}^{-} \, dA}{\gamma_w H A}
+E_h = - \frac{\int_A {p'}_{\text{active}}^{-} \, dA}{\gamma_w H A}
 \]
 
 where:
 
-- \(p_{\text{active}}^{-}\): negative pore pressure contribution
+- \({p'}_{\text{active}}^{-}\): negative pore pressure contribution
 - \(\gamma_w\): unit weight of water
 - \(H\): characteristic hydraulic head
 - \(A\): domain area
@@ -105,7 +105,7 @@ where:
 ## 5. Hydraulic Stress-State Indicator
 
 \[
-I_{\sigma} = - \frac{\int_A \sigma \, dA}{\gamma_w A}
+I_{\sigma} = - \frac{\int_A \sigma' \, dA}{\gamma_w A}
 \]
 
 *(current implementation uses a simplified denominator; refinement pending)*

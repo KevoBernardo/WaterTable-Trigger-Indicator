@@ -324,8 +324,8 @@ def print_results(results, config):
             if print_debug_info:
                 debug = phase_result['ru_debug']
                 print(
-                    f"domain_area={debug['area']:.2f}, "
-                    f"stress_field={debug['stress_field']}"
+                    f"    Debug: integral={debug['ru_integral']:.2f}, integrated_area={debug['integrated_area']:.2f}, "
+                    f"domain_area={debug['area']:.2f}, stress_field={debug['stress_field']}"
                 )
         else:  # all
             if phase_result['saturation_pct'] is not None:
@@ -349,7 +349,7 @@ def print_results(results, config):
                 if print_debug_info:
                     debug3 = phase_result['ru_debug']
                     print(
-                        f"    Debug: stress_integral={debug3['stress_integral']:.2f}, pressure_diff_integral={debug3['pressure_diff_integral']:.2f} "
+                        f"    Debug: integral={debug3['ru_integral']:.2f}, integrated_area={debug3['integrated_area']:.2f} "
                         f"(stress_field={debug3['stress_field']}, A={debug3['area']:.2f})"
                     )
 

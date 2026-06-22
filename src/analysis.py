@@ -222,6 +222,7 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
     vor = Voronoi(points)
 
     ru_integral = 0.0
+    integrated_area = 0.0
 
     for i, region_index in enumerate(vor.point_region):
 
@@ -241,6 +242,7 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
         if clipped.is_empty:
             continue
 
+        area = clipped.area
         stress_value = df_merged.iloc[i][stress_field]
 
         if stress_value == 0:
@@ -253,18 +255,26 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
 
         ratio = pressure_diff / stress_value
 
-        ru_integral += ratio * clipped.area
+        ru_integral += ratio * area
+        integrated_area += area
+
+    if integrated_area <= 0:
+        raise ValueError("Integrated Voronoi area must be positive for Ru calculation")
+
+    ru_index = ru_integral / integrated_area
 
     debug = {
         "ru_integral": ru_integral,
+        "ru_index": ru_index,
         "stress_field": stress_field,
         "area": domain.area,
+        "integrated_area": integrated_area,
         "n_points": len(df_merged),
         "max_point_distance": float(dist.max()),
         "mean_point_distance": float(dist.mean()),
     }
 
-    return ru_integral, debug
+    return ru_index, debug
 
 
 # def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
