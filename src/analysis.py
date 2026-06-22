@@ -153,7 +153,7 @@ def hydraulic_stress_state(domain, df_sp, stress_field="SigyyE", gamma_w=10.0):
     }
     return energy, debug
 
-def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
+def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE", include_positive_pressure_diff=False):
     import numpy as np
     from scipy.spatial import Voronoi, KDTree
     from shapely.geometry import Polygon
@@ -223,6 +223,7 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
 
     ru_integral = 0.0
     integrated_area = 0.0
+    ignored_area = 0.0
 
     for i, region_index in enumerate(vor.point_region):
 
@@ -242,16 +243,20 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
         if clipped.is_empty:
             continue
 
-        area = clipped.area
-        stress_value = df_merged.iloc[i][stress_field]
-
-        if stress_value == 0:
-            continue
-
         pressure_diff = (
             df_merged.iloc[i]["pactive"]
             - df_merged.iloc[i]["pactive_ref"]
         )
+        area = clipped.area
+
+        if not include_positive_pressure_diff and pressure_diff >= 0:
+            ignored_area += area
+            continue
+
+        stress_value = df_merged.iloc[i][stress_field]
+
+        if stress_value == 0:
+            continue
 
         ratio = pressure_diff / stress_value
 
@@ -259,16 +264,19 @@ def ru_method(domain, df_sp, df_ref_sp, stress_field="SigyyE"):
         integrated_area += area
 
     if integrated_area <= 0:
-        raise ValueError("Integrated Voronoi area must be positive for Ru calculation")
-
-    ru_index = ru_integral / integrated_area
+        ru_index = 0.0
+    else:
+        ru_index = ru_integral / integrated_area
 
     debug = {
         "ru_integral": ru_integral,
         "ru_index": ru_index,
         "stress_field": stress_field,
+        "stress_denominator": "signed_value",
         "area": domain.area,
         "integrated_area": integrated_area,
+        "include_positive_pressure_diff": include_positive_pressure_diff,
+        "ignored_area": ignored_area,
         "n_points": len(df_merged),
         "max_point_distance": float(dist.max()),
         "mean_point_distance": float(dist.mean()),

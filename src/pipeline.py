@@ -13,7 +13,7 @@ from .analysis import (
     interpolate_field,
     mask_field,
 )
-from .plotting import plot_saturation, plot_pactive, plot_debug_contour
+from .plotting import plot_saturation, plot_pactive, plot_ru, plot_debug_contour
 
 
 def list_phases_from_csv(dir_raw):
@@ -54,6 +54,7 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     hydraulic_energy_value = hydraulic_debug = None
     effective_stress_energy_value = effective_stress_debug = None
     ru_index = ru_debug = None
+    ru_path = None
 
     if process_method in {"saturated_area", "all"}:
         area_sat, area_unsat = saturated_areas(domain, df_sp)
@@ -89,11 +90,16 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         if ref_df_sp is None:
             raise ValueError("Reference phase stresspoint data must be provided for Ru calculation")
 
+        include_positive_pressure_diff = config.get(
+            "include_positive_pressure_diff",
+            config.get("include_negative_pressure_diff", False),
+        )
         ru_index, ru_debug = ru_method(
             domain,
             df_sp,
             ref_df_sp,
             stress_field=stress_field,
+            include_positive_pressure_diff=include_positive_pressure_diff,
         )
 
     if process_method == "saturated_area":
@@ -122,6 +128,12 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
 
     grid_sat = interpolate_field(df_sp, "saturation", grid_x, grid_y)
     grid_pactive = interpolate_field(df_sp, "pactive", grid_x, grid_y)
+    grid_stress = None
+    ref_grid_pactive = None
+    ref_grid_psteady = None
+    pressure_diff_grid = None
+    ru_index_grid = None
+    ru_index_grid_masked = None
 
     if config["plot_water_table"]:
         grid_psteady = interpolate_field(df_sp, "psteady", grid_x, grid_y)
@@ -162,6 +174,43 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         phase_id,
     )
 
+    if process_method in {"ru", "all"} and ref_df_sp is not None:
+        grid_stress = interpolate_field(df_sp, stress_field, grid_x, grid_y)
+        ref_grid_pactive = interpolate_field(ref_df_sp, "pactive", grid_x, grid_y)
+        ref_grid_psteady = interpolate_field(ref_df_sp, "psteady", grid_x, grid_y)
+        pressure_diff_grid = grid_pactive - ref_grid_pactive
+
+        ru_index_grid = np.full_like(pressure_diff_grid, np.nan, dtype=float)
+        ru_plot_mask = (
+            np.isfinite(pressure_diff_grid)
+            & np.isfinite(grid_stress)
+            & (grid_stress != 0)
+        )
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ru_index_grid[ru_plot_mask] = (
+                pressure_diff_grid[ru_plot_mask] / grid_stress[ru_plot_mask]
+            )
+
+        ru_index_grid = np.where(ru_index_grid >= 0, ru_index_grid, np.nan)
+        ru_index_grid_masked = mask_field(ru_index_grid, mask)
+        reference_water_table_args = {
+            "grid_psteady_masked": mask_field(ref_grid_psteady, mask),
+            "label": f"{config['water_table_label']} reference",
+            "color": config.get("reference_water_table_colour", "black"),
+        }
+        ru_path = plot_ru(
+            grid_x,
+            grid_y,
+            ru_index_grid_masked,
+            config["xmin"],
+            config["xmax"],
+            water_table_args,
+            outdir_figs,
+            phase_name,
+            phase_id,
+            reference_water_table_args=reference_water_table_args,
+        )
+
     if config.get("print_debug_info", False):
         plot_debug_contour(
             grid_x,
@@ -188,7 +237,8 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         )
 
         if process_method in {"effective_stress_energy", "all", "ru"}:
-            grid_stress = interpolate_field(df_sp, stress_field, grid_x, grid_y)
+            if grid_stress is None:
+                grid_stress = interpolate_field(df_sp, stress_field, grid_x, grid_y)
             grid_stress_masked = mask_field(grid_stress, mask)
             plot_debug_contour(
                 grid_x,
@@ -203,7 +253,6 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
             )
 
         if process_method in {"ru", "all"} and ref_df_sp is not None:
-            ref_grid_pactive = interpolate_field(ref_df_sp, "pactive", grid_x, grid_y)
             ref_grid_pactive_masked = mask_field(ref_grid_pactive, mask)
             plot_debug_contour(
                 grid_x,
@@ -217,7 +266,6 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
                 center=0.0,
             )
 
-            pressure_diff_grid = grid_pactive - ref_grid_pactive
             pressure_diff_grid_masked = mask_field(pressure_diff_grid, mask)
             plot_debug_contour(
                 grid_x,
@@ -231,8 +279,6 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
                 center=0.0,
             )
 
-            ru_index_grid = (grid_pactive - ref_grid_pactive) / grid_stress
-            ru_index_grid_masked = mask_field(ru_index_grid, mask)
             plot_debug_contour(
                 grid_x,
                 grid_y,
@@ -243,8 +289,8 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
                 title=f"{phase_name} {phase_id} - Ru index",
                 cmap="viridis",
                 center=0.0,
-                vmin=0,
-                vmax=0.2,
+                vmin=None,
+                vmax=None,
             )
 
     return {
@@ -262,6 +308,7 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         "ru_debug": ru_debug,
         "saturation_fig": sat_path,
         "pactive_fig": pactive_path,
+        "ru_fig": ru_path,
     }
 
 
@@ -325,7 +372,10 @@ def print_results(results, config):
                 debug = phase_result['ru_debug']
                 print(
                     f"    Debug: integral={debug['ru_integral']:.2f}, integrated_area={debug['integrated_area']:.2f}, "
-                    f"domain_area={debug['area']:.2f}, stress_field={debug['stress_field']}"
+                    f"domain_area={debug['area']:.2f}, stress_field={debug['stress_field']}, "
+                    f"stress_denominator={debug['stress_denominator']}, "
+                    f"include_positive_pressure_diff={debug['include_positive_pressure_diff']}, "
+                    f"ignored_area={debug['ignored_area']:.2f}"
                 )
         else:  # all
             if phase_result['saturation_pct'] is not None:
@@ -350,7 +400,10 @@ def print_results(results, config):
                     debug3 = phase_result['ru_debug']
                     print(
                         f"    Debug: integral={debug3['ru_integral']:.2f}, integrated_area={debug3['integrated_area']:.2f} "
-                        f"(stress_field={debug3['stress_field']}, A={debug3['area']:.2f})"
+                        f"(stress_field={debug3['stress_field']}, A={debug3['area']:.2f}, "
+                        f"stress_denominator={debug3['stress_denominator']}, "
+                        f"include_positive_pressure_diff={debug3['include_positive_pressure_diff']}, "
+                        f"ignored_area={debug3['ignored_area']:.2f})"
                     )
 
         # print(f"  Saturation figure: {phase_result['saturation_fig']}")
