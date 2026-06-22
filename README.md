@@ -30,9 +30,7 @@ Each stress point contributes proportionally to its associated Voronoi cell area
 
 ---
 
-## 1. Water Table Trigger Indicator
-
-### Definition
+## 1. $\mathbf{r_u}$ Indicator
 
 \[
 I_{WT} = \int_A \frac{\Delta p}{\sigma} \, dA
@@ -45,33 +43,51 @@ where:
 
 ### Interpretation
 
-This indicator measures spatially accumulated pore pressure changes normalized by stress state, highlighting regions where hydraulic conditions approach potential triggering thresholds.
+Measures spatially accumulated pore pressure changes normalized by stress state, highlighting regions approaching potential hydraulic triggering conditions.
 
 ---
 
-## 2. Saturation Area Indicator
+## 2. Suction Areas Indicator
 
 ### Definition
 
-Computes the proportion of the domain classified as saturated or unsaturated:
+Partitions the domain based on pore pressure sign:
 
-- Saturated: \(p_{\text{active}} \le 0\)
-- Unsaturated: \(p_{\text{active}} > 0\)
+- Suction (negative pressure): \(p_{\text{active}} < 0\)
+- Non-suction (positive or zero pressure): \(p_{\text{active}} \ge 0\)
 
 ### Outputs
 
-- \(A_{sat}\): saturated area
-- \(A_{unsat}\): unsaturated area
+- \(A_{suction}\): total area under suction
+- \(A_{non-suction}\): remaining area
 
 ### Interpretation
 
-Provides a geometric measure of saturation distribution within the domain.
+Quantifies the spatial extent of matric suction conditions, relevant for partially saturated soil behavior and stability.
 
 ---
 
-## 3. Hydraulic Energy Indicator
+## 3. Saturation Areas Indicator
 
 ### Definition
+
+Classifies the domain based on full saturation condition:
+
+- Fully saturated: \(p_{\text{active}} \le 0\) (100% saturation assumption)
+- Not fully saturated: \(p_{\text{active}} > 0\)
+
+### Outputs
+
+- \(A_{sat}\): fully saturated area
+- \(A_{unsat}\): non-saturated or partially saturated area
+
+### Interpretation
+
+Provides a geometric measure of saturation extent within the domain, useful for tracking water table advancement or retreat.
+
+---
+
+## 4. Hydraulic Energy Indicator
 
 \[
 E_h = - \frac{\int_A p_{\text{active}}^{-} \, dA}{\gamma_w H A}
@@ -84,25 +100,15 @@ where:
 - \(H\): characteristic hydraulic head
 - \(A\): domain area
 
-### Interpretation
-
-Represents normalized hydraulic energy associated with suction conditions in the system.
-
 ---
 
-## 4. Hydraulic Stress-State Indicator
-
-### Definition
+## 5. Hydraulic Stress-State Indicator
 
 \[
 I_{\sigma} = - \frac{\int_A \sigma \, dA}{\gamma_w A}
 \]
 
-*(current implementation uses a simplified denominator; full formulation may be updated)*
-
-### Interpretation
-
-Represents a normalized integrated stress state over the domain.
+*(current implementation uses a simplified denominator; refinement pending)*
 
 ---
 
@@ -112,7 +118,7 @@ Represents a normalized integrated stress state over the domain.
 - Handles multiple simulation phases
 - Matches stress points by spatial coordinates
 - Builds Voronoi tessellation for spatial integration
-- Computes multiple physically-based indicators
+- Computes multiple hydraulic and mechanical indicators
 - Includes debugging tools for consistency checks
 
 ---
@@ -121,9 +127,9 @@ Represents a normalized integrated stress state over the domain.
 
 - Tailings dam stability assessment
 - Water table triggering analysis
+- Saturation and suction mapping
 - Liquefaction-related screening metrics
 - Geotechnical numerical model post-processing
-- Spatial stress–hydraulic coupling studies
 
 ---
 
