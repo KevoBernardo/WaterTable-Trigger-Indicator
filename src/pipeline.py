@@ -210,6 +210,8 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
             phase_name,
             phase_id,
             reference_water_table_args=reference_water_table_args,
+            ru_min=config.get("ru_min", 0.0),
+            ru_max=config.get("ru_max", None)
         )
 
     if config.get("print_debug_info", False):

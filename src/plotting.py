@@ -177,22 +177,34 @@ def plot_ru(
     phase_name,
     phase_id,
     reference_water_table_args=None,
+    ru_min=0.0,
+    ru_max=None,
 ):
     if np.all(np.isnan(grid_ru_masked)) or not np.any(np.isfinite(grid_ru_masked)):
         warnings.warn("Skipping Ru figure because the field contains no finite values.")
         return None
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    finite_ru = np.where(np.isfinite(grid_ru_masked), grid_ru_masked, np.nan)
-    vmin = 0.0
-    vmax = np.nanmax(finite_ru)
 
-    if np.isclose(vmin, vmax):
-        delta = max(abs(vmin) * 0.01, 1e-12)
-        levels = [vmin - delta, vmax + delta]
+    finite_ru = np.where(np.isfinite(grid_ru_masked), grid_ru_masked, np.nan)
+
+    # Valor máximo automático si no se especifica
+    if ru_max is None:
+        ru_max = np.nanmax(finite_ru)
+
+    # Enmascarar valores fuera del rango
+    finite_ru = np.where(
+        (finite_ru >= ru_min) & (finite_ru <= ru_max),
+        finite_ru,
+        np.nan,
+    )
+
+    if np.isclose(ru_min, ru_max):
+        delta = max(abs(ru_min) * 0.01, 1e-12)
+        levels = [ru_min - delta, ru_max + delta]
         norm = None
     else:
-        levels = np.linspace(vmin, vmax, 21)
+        levels = np.linspace(ru_min, ru_max, 21)
         norm = None
 
     cp = ax.contourf(
@@ -202,8 +214,9 @@ def plot_ru(
         levels=levels,
         cmap="viridis",
         norm=norm,
-        extend="both",
+        extend="neither",  # no colorea fuera del rango
     )
+
     fig.colorbar(cp, ax=ax, label="Ru index [-]")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -231,4 +244,5 @@ def plot_ru(
     fig_name = f"{phase_name}_{phase_id}_ru.png"
     fig_path = save_figure(fig, outdir_figs, fig_name)
     plt.show()
+
     return fig_path
