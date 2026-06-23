@@ -195,9 +195,10 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         ru_index_grid_masked = mask_field(ru_index_grid, mask)
         reference_water_table_args = {
             "grid_psteady_masked": mask_field(ref_grid_psteady, mask),
-            "label": f"{config['water_table_label']} reference",
+            "label": f"Reference {config['water_table_label'].lower()}",
             "color": config.get("reference_water_table_colour", "black"),
         }
+        water_table_args["label"] = f"Current {config['water_table_label'].lower()}"
         ru_path = plot_ru(
             grid_x,
             grid_y,
