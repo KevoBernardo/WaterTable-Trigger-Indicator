@@ -38,8 +38,14 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     df_nodes = pd.read_csv(nodes_path)
     df_sp = pd.read_csv(sp_path)
 
-    df_nodes = df_nodes[(df_nodes["x_node"] >= config["xmin"]) & (df_nodes["x_node"] <= config["xmax"])]
-    df_sp = df_sp[(df_sp["x_sp"] >= config["xmin"]) & (df_sp["x_sp"] <= config["xmax"])]
+    df_nodes = df_nodes[
+        (df_nodes["x_node"] >= config["xmin"])
+        & (df_nodes["x_node"] <= config["xmax"])
+    ]
+    df_sp = df_sp[
+        (df_sp["x_sp"] >= config["xmin"])
+        & (df_sp["x_sp"] <= config["xmax"])
+    ]
 
     if df_nodes.empty or df_sp.empty:
         return None
@@ -47,7 +53,13 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     domain = build_domain(df_nodes, config["num_nodes_per_elem"])
 
     process_method = config.get("process_method", "all")
-    if process_method not in {"saturated_area", "hydraulic_energy", "effective_stress_energy", "ru", "all"}:
+    if process_method not in {
+        "saturated_area",
+        "hydraulic_energy",
+        "effective_stress_energy",
+        "ru",
+        "all",
+    }:
         raise ValueError(f"Unknown process_method: {process_method}")
 
     area_sat = area_unsat = total = saturation_pct = None
@@ -86,14 +98,20 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     if process_method in {"ru", "all"}:
         reference_phase = config.get("reference_phase")
         if reference_phase is None:
-            raise ValueError("reference_phase must be set in config for Ru calculation")
+            raise ValueError(
+                "reference_phase must be set in config for Ru calculation"
+            )
+
         if ref_df_sp is None:
-            raise ValueError("Reference phase stresspoint data must be provided for Ru calculation")
+            raise ValueError(
+                "Reference phase stresspoint data must be provided for Ru calculation"
+            )
 
         include_positive_pressure_diff = config.get(
             "include_positive_pressure_diff",
             config.get("include_negative_pressure_diff", False),
         )
+
         ru_index, ru_debug = ru_method(
             domain,
             df_sp,
@@ -105,16 +123,20 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     if process_method == "saturated_area":
         selected_metric = "saturation_pct"
         selected_value = saturation_pct
+
     elif process_method == "hydraulic_energy":
         selected_metric = "hydraulic_energy"
         selected_value = hydraulic_energy_value
+
     elif process_method == "effective_stress_energy":
         selected_metric = "effective_stress_energy"
         selected_value = effective_stress_energy_value
+
     elif process_method == "ru":
         selected_metric = "ru_index"
         selected_value = ru_index
-    else:  # all
+
+    else:
         selected_metric = "all"
         selected_value = None
 
@@ -128,6 +150,7 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
 
     grid_sat = interpolate_field(df_sp, "saturation", grid_x, grid_y)
     grid_pactive = interpolate_field(df_sp, "pactive", grid_x, grid_y)
+
     grid_stress = None
     ref_grid_pactive = None
     ref_grid_psteady = None
@@ -139,18 +162,25 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         grid_psteady = interpolate_field(df_sp, "psteady", grid_x, grid_y)
 
     mask = mask_domain(domain, grid_x, grid_y)
+
     grid_sat_masked = mask_field(grid_sat, mask)
     grid_sat_masked = np.clip(grid_sat_masked, 0, 100)
+
     grid_pactive_masked = mask_field(grid_pactive, mask)
 
     water_table_args = {
         "enabled": config["plot_water_table"],
-        "grid_psteady_masked": mask_field(grid_psteady, mask) if config["plot_water_table"] else None,
+        "grid_psteady_masked": (
+            mask_field(grid_psteady, mask)
+            if config["plot_water_table"]
+            else None
+        ),
         "label": config["water_table_label"],
         "color": config["water_table_colour"],
     }
 
     phase_id = extract_phase_id(nodes_path)
+
     sat_path = plot_saturation(
         grid_x,
         grid_y,
@@ -162,6 +192,7 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
         phase_id,
         phase_name,
     )
+
     pactive_path = plot_pactive(
         grid_x,
         grid_y,
@@ -175,30 +206,79 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
     )
 
     if process_method in {"ru", "all"} and ref_df_sp is not None:
-        grid_stress = interpolate_field(df_sp, stress_field, grid_x, grid_y)
-        ref_grid_pactive = interpolate_field(ref_df_sp, "pactive", grid_x, grid_y)
-        ref_grid_psteady = interpolate_field(ref_df_sp, "psteady", grid_x, grid_y)
+
+        grid_stress = interpolate_field(
+            df_sp,
+            stress_field,
+            grid_x,
+            grid_y,
+        )
+
+        ref_grid_pactive = interpolate_field(
+            ref_df_sp,
+            "pactive",
+            grid_x,
+            grid_y,
+        )
+
+        ref_grid_psteady = interpolate_field(
+            ref_df_sp,
+            "psteady",
+            grid_x,
+            grid_y,
+        )
+
         pressure_diff_grid = grid_pactive - ref_grid_pactive
 
-        ru_index_grid = np.full_like(pressure_diff_grid, np.nan, dtype=float)
+        ru_index_grid = np.full_like(
+            pressure_diff_grid,
+            np.nan,
+            dtype=float,
+        )
+
         ru_plot_mask = (
             np.isfinite(pressure_diff_grid)
             & np.isfinite(grid_stress)
             & (grid_stress != 0)
         )
+
         with np.errstate(divide="ignore", invalid="ignore"):
             ru_index_grid[ru_plot_mask] = (
-                pressure_diff_grid[ru_plot_mask] / grid_stress[ru_plot_mask]
+                pressure_diff_grid[ru_plot_mask]
+                / grid_stress[ru_plot_mask]
             )
+            
+        if config.get("mask_negative_ru_for_plot", True):
+            ru_index_grid = np.where(
+                ru_index_grid >= 0,
+                ru_index_grid,
+                np.nan,
+            )
+            
+        if config.get("apply_ru_mask", True):
+            ru_index_grid_masked = mask_field(
+                ru_index_grid,
+                mask,
+            )
+        else:
+            ru_index_grid_masked = ru_index_grid
 
-        ru_index_grid = np.where(ru_index_grid >= 0, ru_index_grid, np.nan)
-        ru_index_grid_masked = mask_field(ru_index_grid, mask)
         reference_water_table_args = {
-            "grid_psteady_masked": mask_field(ref_grid_psteady, mask),
+            "grid_psteady_masked": mask_field(
+                ref_grid_psteady,
+                mask,
+            ),
             "label": f"Reference {config['water_table_label'].lower()}",
-            "color": config.get("reference_water_table_colour", "black"),
+            "color": config.get(
+                "reference_water_table_colour",
+                "black",
+            ),
         }
-        water_table_args["label"] = f"Current {config['water_table_label'].lower()}"
+
+        water_table_args["label"] = (
+            f"Current {config['water_table_label'].lower()}"
+        )
+
         ru_path = plot_ru(
             grid_x,
             grid_y,
@@ -211,10 +291,11 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
             phase_id,
             reference_water_table_args=reference_water_table_args,
             ru_min=config.get("ru_min", 0.0),
-            ru_max=config.get("ru_max", None)
+            ru_max=config.get("ru_max", None),
         )
 
     if config.get("print_debug_info", False):
+
         plot_debug_contour(
             grid_x,
             grid_y,
@@ -239,10 +320,25 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
             center=0.0,
         )
 
-        if process_method in {"effective_stress_energy", "all", "ru"}:
+        if process_method in {
+            "effective_stress_energy",
+            "all",
+            "ru",
+        }:
+
             if grid_stress is None:
-                grid_stress = interpolate_field(df_sp, stress_field, grid_x, grid_y)
-            grid_stress_masked = mask_field(grid_stress, mask)
+                grid_stress = interpolate_field(
+                    df_sp,
+                    stress_field,
+                    grid_x,
+                    grid_y,
+                )
+
+            grid_stress_masked = mask_field(
+                grid_stress,
+                mask,
+            )
+
             plot_debug_contour(
                 grid_x,
                 grid_y,
@@ -256,7 +352,12 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
             )
 
         if process_method in {"ru", "all"} and ref_df_sp is not None:
-            ref_grid_pactive_masked = mask_field(ref_grid_pactive, mask)
+
+            ref_grid_pactive_masked = mask_field(
+                ref_grid_pactive,
+                mask,
+            )
+
             plot_debug_contour(
                 grid_x,
                 grid_y,
@@ -269,7 +370,11 @@ def process_phase_files(phase_name, nodes_path, sp_path, config, outdir_figs, re
                 center=0.0,
             )
 
-            pressure_diff_grid_masked = mask_field(pressure_diff_grid, mask)
+            pressure_diff_grid_masked = mask_field(
+                pressure_diff_grid,
+                mask,
+            )
+
             plot_debug_contour(
                 grid_x,
                 grid_y,
